@@ -48,10 +48,11 @@ int main() {
 
     return 0;
 }
-Advanced Usage (Task Dependencies)
+```
+## Advanced Usage (Task Dependencies)
 You can easily create a chain of dependent tasks. The following example submits TaskB, which will only begin after TaskA has finished.
 
-C++
+```cpp
 
 #include <iostream>
 #include <string>
@@ -84,10 +85,11 @@ int main() {
 
     return 0;
 }
-Building the Project
+```
+## Building the Project
 This project uses CMake for building the library, examples, and tests.
 
-Bash
+```Bash
 
 # 1. Clone the repository
 git clone [https://github.com/Karthikgaur8/concurrent-job-system.git](https://github.com/Karthikgaur8/concurrent-job-system.git)
@@ -108,12 +110,14 @@ cmake .. -G "Unix Makefiles"
 
 # 5. Build the project
 make
-Running Tests
+```
+## Running Tests
 The test suite is built automatically. To run the tests, navigate to the build directory and run ctest.
 
-Bash
+```Bash
 
 cd build
 ctest --verbose
-License
+```
+## License
 This project is licensed under the MIT License. See the LICENSE file for details.
