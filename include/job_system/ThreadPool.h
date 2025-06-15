@@ -68,36 +68,30 @@ public:
 
     template<typename F, typename... Args>
     auto submit(F&& f, Args&&... args) -> std::future<decltype(f(args...))> {
-        // Create a function wrapper that binds the function and its arguments.
-        // This allows us to call it with no parameters later.
-        auto task_binder = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-
-        // Define the return type of the function we're submitting.
+        // Calculate the function's return type
         using ReturnType = decltype(f(args...));
 
-        // A std::packaged_task is a special wrapper that links a callable
-        // object (our task) to a std::future, which will hold its result.
-        auto task_ptr = std::make_shared<std::packaged_task<ReturnType()>>(task_binder);
+        // Create a packaged_task. A packaged_task needs a function that takes zero
+        // arguments. So, we wrap our function and its arguments in a lambda.
+        // This is a modern replacement for std::bind.
+        auto task_ptr = std::make_shared<std::packaged_task<ReturnType()>>(
+            [func = std::forward<F>(f), t_args = std::make_tuple(std::forward<Args>(args)...)]() mutable -> ReturnType {
+                // std::apply invokes the captured function with arguments from the tuple
+                return std::apply(func, std::move(t_args));
+            }
+        );
 
-        // Get the future from the packaged_task. This is our "ticket" that
-        // we will return to the caller.
         std::future<ReturnType> result_future = task_ptr->get_future();
-
-        // Use a block to scope the lock
         {
             std::unique_lock<std::mutex> lock(queue_mutex_);
 
-            // Don't allow new tasks to be submitted if the pool is stopping.
             if(stop_) {
                 throw std::runtime_error("submit on stopped ThreadPool");
             }
             
-            // Push a new lambda onto the queue. This lambda's only job is
-            // to execute our packaged_task.
             tasks_.emplace([task_ptr](){ (*task_ptr)(); });
-        } // The lock is released here
+        }
 
-        // Wake up one waiting thread to pick up the new task.
         condition_.notify_one();
 
         return result_future;

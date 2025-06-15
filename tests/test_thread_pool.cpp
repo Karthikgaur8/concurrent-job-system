@@ -70,3 +70,35 @@ TEST(ThreadPoolTest, SubmitsTaskWithArguments) {
 
     EXPECT_EQ(result, 30);
 }
+
+// Test case to verify that task dependencies are handled correctly.
+TEST(ThreadPoolTest, HandlesTaskDependencies) {
+    ThreadPool pool(4);
+    std::vector<int> execution_log;
+    std::mutex log_mutex; // Mutex to protect the execution log
+
+    // Task A: Returns an int.
+    auto future_A = pool.submit([] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        return 1;
+    });
+
+    // Task B: Depends on Task A. It takes Task A's future as an argument.
+    // We move the future into the lambda to transfer ownership.
+    auto future_B = pool.submit([&log_mutex, &execution_log, future_A = std::move(future_A)]() mutable {
+    // Wait for future from Task A to be ready, then get its value.
+    int result_A = future_A.get();
+    
+    // Log our execution order
+    std::lock_guard<std::mutex> lock(log_mutex);
+    execution_log.push_back(result_A);
+    execution_log.push_back(2);
+});
+    // The main thread will wait here until Task B is complete.
+    future_B.get();
+
+    // Verify that the tasks executed in the correct order.
+    ASSERT_EQ(execution_log.size(), 2);
+    EXPECT_EQ(execution_log[0], 1); // Result from Task A should be first
+    EXPECT_EQ(execution_log[1], 2); // Result from Task B should be second
+}
